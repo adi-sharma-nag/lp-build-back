@@ -3,19 +3,22 @@ import type { ModelConfig, ChatMessage, ChatResponse } from './types';
 const CLOUD_FUNCTION_URL = 'https://living-persona-back-816746757912.us-central1.run.app';
 const SECRET_KEY = 'Y7mA3rftGFrSSed87dXfK9Zq1VtPgUcY8WrQjN6e2Hxs';
 
-async function sendToCloudFunction(
+export async function sendToCloudFunction(
   type: 'chat' | 'suggestions',
   payload: object
 ): Promise<string> {
   try {
+    // Backend currently only supports the "chat" type and returns
+    // both chat and suggestion strings in the response. Map the
+    // suggestions request to chat when sending.
+    const backendType = type === 'suggestions' ? 'chat' : type
+
     const response = await fetch(CLOUD_FUNCTION_URL, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         key: SECRET_KEY,
-        type,
+        type: backendType,
         ...payload,
       }),
     });
@@ -26,13 +29,15 @@ async function sendToCloudFunction(
     }
 
     const result = await response.json();
-    if (result.response) {
-      return result.response;
-    } else if (result.message) {
-      return result.message;
-    } else {
-      return JSON.stringify(result);  // fallback for unexpected structure
-    }
+
+    // New backend returns { chat: string, suggestions: string }
+    if (type === 'chat' && result.chat) return result.chat;
+    if (type === 'suggestions' && result.suggestions) return result.suggestions;
+
+    if (result.response) return result.response;
+    if (result.message) return result.message;
+
+    return JSON.stringify(result); // fallback for unexpected structure
   } catch (err: any) {
     console.error('Error communicating with backend:', err);
     return `Error: ${err.message}`;
