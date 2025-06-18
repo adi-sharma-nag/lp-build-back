@@ -2,3 +2,4 @@ flask
 functions-framework
 google-cloud-storage
 google-generativeai
+requests
