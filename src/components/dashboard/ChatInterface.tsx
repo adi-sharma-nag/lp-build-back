@@ -111,7 +111,10 @@ function ChatInterface() {
   // Message handling
   const handleSend = useCallback(async (message: string) => {
     if (isProcessing || !currentPersona || !chat) return
-    
+
+    // Clear previous suggestions while processing new message
+    setSuggestions([])
+
     // Add user message
     const userMessage: Message = {
       id: crypto.randomUUID(),
@@ -153,6 +156,7 @@ function ChatInterface() {
   const handleImageUpload = useCallback(async (imageData: string) => {
     if (isProcessing || !currentPersona) return
     setIsProcessing(true)
+    setSuggestions([])
 
     try {
       // Add user message with image
@@ -179,15 +183,20 @@ function ChatInterface() {
       setMessages(prev => [...prev, analysisMessage])
 
       // Generate new image based on analysis
-      const generated = await generateImage(response.content)
-      const imageMessage: Message = {
-        id: crypto.randomUUID(),
-        content: 'Here is a new image based on your input.',
-        sender: 'persona',
-        timestamp: new Date(),
-        image: generated
+      try {
+        const generated = await generateImage(response.content)
+        const imageMessage: Message = {
+          id: crypto.randomUUID(),
+          content: 'Here is a new image based on your input.',
+          sender: 'persona',
+          timestamp: new Date(),
+          image: generated
+        }
+        setMessages(prev => [...prev, imageMessage])
+      } catch (error) {
+        console.error('Failed to generate image:', error)
+        toast.error('Failed to generate image. Please try again.')
       }
-      setMessages(prev => [...prev, imageMessage])
     } catch (error) {
       console.error('Failed to analyze image:', error)
       toast.error('Failed to analyze image. Please try again.')
