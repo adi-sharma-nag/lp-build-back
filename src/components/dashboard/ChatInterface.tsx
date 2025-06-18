@@ -182,21 +182,16 @@ function ChatInterface() {
       setMessages(prev => [...prev, analysisMessage])
 
       if (response.image) {
-        // Generate new image based on analysis
-        try {
-          const generated = await generateImage(response.content)
-          const imageMessage: Message = {
-            id: crypto.randomUUID(),
-            content: 'Here is a new image based on your input.',
-            sender: 'persona',
-            timestamp: new Date(),
-            image: generated,
-          }
-          setMessages(prev => [...prev, imageMessage])
-        } catch (error) {
-          console.error('Failed to generate image:', error)
-          toast.error('Failed to generate image. Please try again.')
+
+        const imageMessage: Message = {
+          id: crypto.randomUUID(),
+          content: 'Here is a new image based on your input.',
+          sender: 'persona',
+          timestamp: new Date(),
+          image: response.image,
         }
+        setMessages(prev => [...prev, imageMessage])
+
       }
     } catch (error) {
       console.error('Failed to analyze image:', error)

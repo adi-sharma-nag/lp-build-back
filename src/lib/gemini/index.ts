@@ -5,7 +5,7 @@ const CLOUD_FUNCTION_URL =
 const SECRET_KEY = 'Y7mA3rftGFrSSed87dXfK9Zq1VtPgUcY8WrQjN6e2Hxs';
 
 export async function sendToCloudFunction(
-  type: 'chat' | 'image-analysis',
+  type: 'chat' | 'image-analysis' | 'generate-image',
   payload: object
 ): Promise<any> {
   try {
