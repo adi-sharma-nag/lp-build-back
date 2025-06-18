@@ -28,6 +28,7 @@ function ChatInterface() {
 
   // Chat state
   const [messages, setMessages] = useState<Message[]>([])
+  const [suggestions, setSuggestions] = useState<string[]>([])
   const [isProcessing, setIsProcessing] = useState(false)
   const [showPersonaSelector, setShowPersonaSelector] = useState(false)
 
@@ -63,6 +64,7 @@ function ChatInterface() {
   useEffect(() => {
     if (!currentPersona) return
     setMessages([])
+    setSuggestions([])
     
     // Add greeting after a small delay
     setTimeout(() => {
@@ -121,19 +123,25 @@ function ChatInterface() {
     setIsProcessing(true)
 
     try {
-      const response = await chat.chat(message, formattedMessages, currentPersona.id)
+      const response = await chat.chat(
+        message,
+        formattedMessages,
+        currentPersona.id
+      )
 
-      // Add response
       const assistantMessage: Message = {
         id: crypto.randomUUID(),
         content: response.content,
         sender: 'persona',
         timestamp: new Date(),
         metadata: {
-          thoughts: response.metadata?.thoughts
-        }
+          thoughts: response.metadata?.thoughts,
+        },
       }
       setMessages(prev => [...prev, assistantMessage])
+      if (response.suggestions) {
+        setSuggestions(response.suggestions)
+      }
     } catch (error) {
       console.error('Failed to process message:', error)
       toast.error('Failed to get response. Please try again.')
@@ -204,6 +212,8 @@ function ChatInterface() {
       <div className="hidden sm:flex w-80 border-r border-gray-200 bg-gray-50 flex-col">
         <SuggestionsSidebar
           messages={messages}
+          suggestions={suggestions}
+          isLoading={isProcessing}
           onSuggestionClick={handleSend}
         />
       </div>
@@ -264,6 +274,7 @@ function ChatInterface() {
           isTyping={isProcessing}
           messages={messages}
           lastMessage={messages[messages.length - 1]?.content}
+          suggestions={suggestions}
         />
 
         {/* Persona Selector */}
