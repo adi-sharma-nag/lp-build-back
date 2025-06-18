@@ -4,6 +4,7 @@ import google.generativeai as genai
 import functions_framework
 import re
 import base64
+import requests
 
 
 def read_file_from_gcs(bucket_name, file_name):
@@ -24,6 +25,35 @@ def create_cors_response(payload, status=200):
     response.headers['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
     response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
     return response
+
+
+def generate_image(prompt: str) -> str:
+    """Generate an image using Imagen based on a text prompt."""
+    api_key = "AIzaSyCL8u9t3adQG_E38nJO531I4s5KZ2PHkyo"
+    url = (
+        "https://generativelanguage.googleapis.com/v1beta/models/"
+        "imagen-3.0-generate-002:predict?key=" + api_key
+    )
+    payload = {
+        "instances": [{"prompt": prompt}],
+        "parameters": {"sampleCount": 1},
+    }
+
+    try:
+        resp = requests.post(url, json=payload, timeout=30)
+        resp.raise_for_status()
+        result = resp.json()
+        predictions = result.get("predictions")
+        if not isinstance(predictions, list) or not predictions:
+            raise ValueError("Unexpected API response")
+        base64_img = predictions[0].get("bytesBase64Encoded") or predictions[0].get(
+            "content"
+        )
+        if not base64_img:
+            raise ValueError("Failed to extract image data")
+        return "data:image/png;base64," + base64_img
+    except Exception as e:
+        raise RuntimeError(f"Imagen request failed: {str(e)}") from e
 
 
 @functions_framework.http
@@ -131,7 +161,12 @@ def hello_http(req):
             if not text:
                 return create_cors_response("Empty response from model.", 500)
 
-            return create_cors_response({"response": text})
+            try:
+                generated_image = generate_image(text)
+            except Exception as e:
+                return create_cors_response(str(e), 500)
+
+            return create_cors_response({"response": text, "image": generated_image})
 
         else:
             return create_cors_response("Invalid query type.", 400)

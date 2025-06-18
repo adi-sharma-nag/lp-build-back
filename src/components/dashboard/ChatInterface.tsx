@@ -2,7 +2,6 @@ import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { usePersonaStore } from '../../stores/personaStore'
 import { GeminiChat } from '../../lib/gemini'
-import { generateImage } from '../../lib/imagen'
 import type { Message } from '../../types'
 import Message from '../chat/Message'
 import MessageInput from '../chat/MessageInput'
@@ -182,6 +181,9 @@ function ChatInterface() {
       }
       setMessages(prev => [...prev, analysisMessage])
 
+
+      if (response.image) {
+
       // Generate new image based on analysis
       try {
         const generated = await generateImage(response.content)
@@ -190,12 +192,17 @@ function ChatInterface() {
           content: 'Here is a new image based on your input.',
           sender: 'persona',
           timestamp: new Date(),
+          image: response.image,
+        }
+        setMessages(prev => [...prev, imageMessage])
+
           image: generated
         }
         setMessages(prev => [...prev, imageMessage])
       } catch (error) {
         console.error('Failed to generate image:', error)
         toast.error('Failed to generate image. Please try again.')
+
       }
     } catch (error) {
       console.error('Failed to analyze image:', error)
