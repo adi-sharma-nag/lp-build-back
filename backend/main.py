@@ -168,6 +168,18 @@ def hello_http(req):
 
             return create_cors_response({"response": text, "image": generated_image})
 
+        elif query_type == "generate-image":
+            prompt = request_json.get('prompt', '').strip()
+            if not prompt:
+                return create_cors_response("Missing prompt.", 400)
+
+            try:
+                generated_image = generate_image(prompt)
+            except Exception as e:
+                return create_cors_response(str(e), 500)
+
+            return create_cors_response({"image": generated_image})
+
         else:
             return create_cors_response("Invalid query type.", 400)
 
