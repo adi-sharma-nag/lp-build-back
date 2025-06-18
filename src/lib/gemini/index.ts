@@ -65,7 +65,7 @@ export class GeminiChat {
 
   async analyzeImage(imageData: string): Promise<ChatResponse> {
     const result = await sendToCloudFunction('image-analysis', { imageData });
-    return this.wrapResponse(result.response);
+    return this.wrapResponse(result.response, undefined, result.image);
   }
 
   private composeMessageWithHistory(message: string, history: ChatMessage[]): string {
@@ -78,7 +78,11 @@ export class GeminiChat {
     return message;
   }
 
-  private wrapResponse(text: string, suggestionsText?: string): ChatResponse {
+  private wrapResponse(
+    text: string,
+    suggestionsText?: string,
+    image?: string,
+  ): ChatResponse {
     return {
       content: text,
       metadata: {
@@ -92,6 +96,7 @@ export class GeminiChat {
             .map(line => line.replace(/^["'\d.\s-]+/, '').trim())
             .slice(0, 5)
         : undefined,
+      image,
     };
   }
 }

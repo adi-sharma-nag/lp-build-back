@@ -25,6 +25,7 @@ export interface ChatResponse {
     thoughts?: string
   }
   suggestions?: string[]
+  image?: string
 }
 
 export interface ModelConfig {
