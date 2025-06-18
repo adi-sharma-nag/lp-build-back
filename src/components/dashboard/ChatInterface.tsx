@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { usePersonaStore } from '../../stores/personaStore'
 import { GeminiChat } from '../../lib/gemini'
+import { generateImage } from '../../lib/imagen'
 import type { Message } from '../../types'
 import Message from '../chat/Message'
 import MessageInput from '../chat/MessageInput'
@@ -157,18 +158,28 @@ function ChatInterface() {
       setMessages(prev => [...prev, userMessage])
 
       // Process image
-      const chat = new GeminiChat(currentPersona.modelConfig)
-      const response = await chat.analyzeImage(imageData)
+      const imageChat = new GeminiChat(currentPersona.modelConfig)
+      const response = await imageChat.analyzeImage(imageData)
 
-      // Add response
-      const assistantMessage: Message = {
+      const analysisMessage: Message = {
         id: crypto.randomUUID(),
         content: response.content,
         sender: 'persona',
         timestamp: new Date(),
         metadata: response.metadata
       }
-      setMessages(prev => [...prev, assistantMessage])
+      setMessages(prev => [...prev, analysisMessage])
+
+      // Generate new image based on analysis
+      const generated = await generateImage(response.content)
+      const imageMessage: Message = {
+        id: crypto.randomUUID(),
+        content: 'Here is a new image based on your input.',
+        sender: 'persona',
+        timestamp: new Date(),
+        image: generated
+      }
+      setMessages(prev => [...prev, imageMessage])
     } catch (error) {
       console.error('Failed to analyze image:', error)
       toast.error('Failed to analyze image. Please try again.')

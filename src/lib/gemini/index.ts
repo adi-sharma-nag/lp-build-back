@@ -4,13 +4,12 @@ const CLOUD_FUNCTION_URL = 'https://living-persona-back-816746757912.us-central1
 const SECRET_KEY = 'Y7mA3rftGFrSSed87dXfK9Zq1VtPgUcY8WrQjN6e2Hxs';
 
 export async function sendToCloudFunction(
-  type: 'chat' | 'suggestions',
+  type: 'chat' | 'suggestions' | 'image-analysis',
   payload: object
 ): Promise<string> {
   try {
-    // Backend currently only supports the "chat" type and returns
-    // both chat and suggestion strings in the response. Map the
-    // suggestions request to chat when sending.
+    // Backend currently maps suggestions to the "chat" type. Other
+    // request types are sent as-is.
     const backendType = type === 'suggestions' ? 'chat' : type
 
     const response = await fetch(CLOUD_FUNCTION_URL, {
@@ -65,6 +64,11 @@ export class GeminiChat {
 
   async getSuggestions(): Promise<ChatResponse> {
     const responseText = await sendToCloudFunction('suggestions', {});
+    return this.wrapResponse(responseText);
+  }
+
+  async analyzeImage(imageData: string): Promise<ChatResponse> {
+    const responseText = await sendToCloudFunction('image-analysis', { imageData });
     return this.wrapResponse(responseText);
   }
 
