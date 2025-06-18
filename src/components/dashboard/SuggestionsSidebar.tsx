@@ -1,49 +1,20 @@
-import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { SuggestionsService } from '../../lib/suggestions'
 import type { Message } from '../../types'
 import { MessageSquare } from 'lucide-react'
 
 interface SuggestionsSidebarProps {
   messages: Message[]
+  suggestions: string[]
+  isLoading: boolean
   onSuggestionClick: (suggestion: string) => void
 }
 
-const suggestionsService = new SuggestionsService()
-
-export default function SuggestionsSidebar({ messages, onSuggestionClick }: SuggestionsSidebarProps) {
-  const [suggestions, setSuggestions] = useState<string[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const lastMessage = messages[messages.length - 1]
-
-  useEffect(() => {
-    let mounted = true
-    
-    const loadSuggestions = async () => {
-      if (!lastMessage || lastMessage.sender === 'user') {
-        setSuggestions([])
-        setIsLoading(false)
-        return
-      }
-
-      setIsLoading(true)
-      try {
-        const newSuggestions = await suggestionsService.getSuggestions(lastMessage.content)
-        if (mounted) {
-          setSuggestions(newSuggestions)
-          setIsLoading(false)
-        }
-      } catch (error) {
-        console.error(error)
-        if (mounted) {
-          setIsLoading(false)
-        }
-      }
-    }
-
-    loadSuggestions()
-    return () => { mounted = false }
-  }, [lastMessage])
+export default function SuggestionsSidebar({
+  messages,
+  suggestions,
+  isLoading,
+  onSuggestionClick,
+}: SuggestionsSidebarProps) {
 
   return (
     <div className="h-full flex flex-col">

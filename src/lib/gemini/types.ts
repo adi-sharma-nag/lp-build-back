@@ -24,6 +24,7 @@ export interface ChatResponse {
     processingTime?: number
     thoughts?: string
   }
+  suggestions?: string[]
 }
 
 export interface ModelConfig {

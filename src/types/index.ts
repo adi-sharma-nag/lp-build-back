@@ -20,6 +20,7 @@ export interface Persona {
   knowledgeBase: string[]
   createdAt: Date
   updatedAt: Date
+}
 
 export interface ConversationContext {
   environment: {
@@ -44,6 +45,7 @@ export interface Message {
   content: string
   sender: 'user' | 'persona'
   timestamp: Date
+  image?: string
   metadata?: {
     emotion?: string
     confidence?: number

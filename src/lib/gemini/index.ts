@@ -1,17 +1,15 @@
 import type { ModelConfig, ChatMessage, ChatResponse } from './types';
 
-const CLOUD_FUNCTION_URL = 'https://living-persona-back-816746757912.us-central1.run.app';
+const CLOUD_FUNCTION_URL =
+  'https://living-persona-back-816746757912.us-central1.run.app';
 const SECRET_KEY = 'Y7mA3rftGFrSSed87dXfK9Zq1VtPgUcY8WrQjN6e2Hxs';
 
 export async function sendToCloudFunction(
-  type: 'chat' | 'suggestions',
+  type: 'chat' | 'image-analysis',
   payload: object
-): Promise<string> {
+): Promise<any> {
   try {
-    // Backend currently only supports the "chat" type and returns
-    // both chat and suggestion strings in the response. Map the
-    // suggestions request to chat when sending.
-    const backendType = type === 'suggestions' ? 'chat' : type
+    const backendType = type
 
     const response = await fetch(CLOUD_FUNCTION_URL, {
       method: 'POST',
@@ -29,18 +27,10 @@ export async function sendToCloudFunction(
     }
 
     const result = await response.json();
-
-    // New backend returns { chat: string, suggestions: string }
-    if (type === 'chat' && result.chat) return result.chat;
-    if (type === 'suggestions' && result.suggestions) return result.suggestions;
-
-    if (result.response) return result.response;
-    if (result.message) return result.message;
-
-    return JSON.stringify(result); // fallback for unexpected structure
+    return result;
   } catch (err: any) {
     console.error('Error communicating with backend:', err);
-    return `Error: ${err.message}`;
+    throw err;
   }
 }
 
@@ -59,30 +49,49 @@ export class GeminiChat {
     personaId: string
   ): Promise<ChatResponse> {
     const fullMessage = this.composeMessageWithHistory(message, history);
-    const responseText = await sendToCloudFunction('chat', { query: fullMessage });
-    return this.wrapResponse(responseText);
+    const result = await sendToCloudFunction('chat', {
+      query: fullMessage,
+      personaId,
+    });
+    return this.wrapResponse(result.chat, result.suggestions);
   }
 
+  // Suggestions are now returned with chat, so this is unused but kept
+  // for backwards compatibility.
   async getSuggestions(): Promise<ChatResponse> {
-    const responseText = await sendToCloudFunction('suggestions', {});
-    return this.wrapResponse(responseText);
+    const result = await sendToCloudFunction('chat', {});
+    return this.wrapResponse(result.chat, result.suggestions);
+  }
+
+  async analyzeImage(imageData: string): Promise<ChatResponse> {
+    const result = await sendToCloudFunction('image-analysis', { imageData });
+    return this.wrapResponse(result.response);
   }
 
   private composeMessageWithHistory(message: string, history: ChatMessage[]): string {
-    const instructions = this.modelConfig.systemInstructions.join('\n');
     const historyText = history
       .map(msg => `${msg.role}: ${msg.content}`)
       .join('\n');
-    return `${instructions}\n${historyText}\nuser: ${message}`;
+    if (historyText) {
+      return `${historyText}\nuser: ${message}`;
+    }
+    return message;
   }
 
-  private wrapResponse(text: string): ChatResponse {
+  private wrapResponse(text: string, suggestionsText?: string): ChatResponse {
     return {
       content: text,
       metadata: {
-        confidence: 1,  // Can update if backend starts returning confidence
-        processingTime: 0  // Can update if backend adds timing info
-      }
+        confidence: 1,
+        processingTime: 0,
+      },
+      suggestions: suggestionsText
+        ? suggestionsText
+            .split('\n')
+            .filter(line => line.trim())
+            .map(line => line.replace(/^["'\d.\s-]+/, '').trim())
+            .slice(0, 5)
+        : undefined,
     };
   }
 }

@@ -1,10 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { Send, X, Image as ImageIcon } from 'lucide-react'
-import { SuggestionsService } from '../../lib/suggestions'
 import { motion, AnimatePresence } from 'framer-motion'
 import toast from 'react-hot-toast'
-
-const suggestionsService = new SuggestionsService()
 
 interface MessageInputProps {
   onSend: (message: string) => void
@@ -12,14 +9,14 @@ interface MessageInputProps {
   isTyping: boolean
   lastMessage?: string
   messages?: Array<{ sender: string }>
+  suggestions?: string[]
   className?: string
 }
 
-function MessageInput({ onSend, onImageUpload, isTyping, lastMessage, messages = [], className = '' }: MessageInputProps) {
+function MessageInput({ onSend, onImageUpload, isTyping, lastMessage, messages = [], suggestions = [], className = '' }: MessageInputProps) {
   const [inputValue, setInputValue] = useState('')
   const [showSuggestions, setShowSuggestions] = useState(true)
   const [scrollPosition, setScrollPosition] = useState(0)
-  const [suggestions, setSuggestions] = useState<string[]>([])
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(true)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -75,49 +72,14 @@ function MessageInput({ onSend, onImageUpload, isTyping, lastMessage, messages =
     }
   }, [])
 
-  // Single useEffect for loading suggestions
+  // Update loading state when new suggestions arrive
   useEffect(() => {
-    let mounted = true
-    let loadingTimeout: NodeJS.Timeout
-
-    const loadSuggestions = async () => {
-      if (!shouldShowSuggestions) {
-        setSuggestions([])
-        setIsLoadingSuggestions(false)
-        return
-      }
-
-      setIsLoadingSuggestions(true)
-      try {
-        const newSuggestions = await suggestionsService.getSuggestions(lastMessage || '')
-        if (mounted) {
-          // Add a small delay before showing new suggestions
-          loadingTimeout = setTimeout(() => {
-            setSuggestions(newSuggestions)
-            setIsLoadingSuggestions(false)
-          }, 100)
-        }
-      } catch (error) {
-        console.error(error)
-        if (mounted) {
-          loadingTimeout = setTimeout(() => {
-            setIsLoadingSuggestions(false)
-          }, 100)
-        }
-      }
-    }
-
     if (shouldShowSuggestions) {
-      loadSuggestions()
+      setIsLoadingSuggestions(false)
+    } else {
+      setIsLoadingSuggestions(false)
     }
-    
-    return () => {
-      mounted = false
-      if (loadingTimeout) {
-        clearTimeout(loadingTimeout)
-      }
-    }
-  }, [lastMessage, shouldShowSuggestions])
+  }, [suggestions, shouldShowSuggestions])
 
   // Duplicate suggestions array for seamless loop
   const displaySuggestions = [...suggestions, ...suggestions]
@@ -139,15 +101,11 @@ function MessageInput({ onSend, onImageUpload, isTyping, lastMessage, messages =
     // Animate out current suggestions
     setShowSuggestions(false)
     setScrollPosition(0) // Reset scroll position
-    
+
     // Send message
     onSend(suggestion)
-
-    // Get new suggestions and animate them in
-    setTimeout(async () => {
-      setIsLoadingSuggestions(true)
-      const newSuggestions = await suggestionsService.getSuggestions(suggestion)
-      setSuggestions(newSuggestions)
+    // Wait a moment before showing new suggestions from parent
+    setTimeout(() => {
       setIsLoadingSuggestions(false)
       setShowSuggestions(true)
     }, 300)
