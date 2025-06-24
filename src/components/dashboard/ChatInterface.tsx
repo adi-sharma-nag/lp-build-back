@@ -45,7 +45,6 @@ function ChatInterface() {
       console.error('Missing model config for persona:', currentPersona.id)
       return
     }
-    console.log('Initializing chat with persona:', currentPersona.name)
     const newChat = new GeminiChat(config)
     setChat(newChat)
   }, [currentPersona?.id])
@@ -69,7 +68,6 @@ function ChatInterface() {
     setTimeout(() => {
       if (!currentPersona.greeting) return
       
-      console.log('Setting greeting for:', currentPersona.name)
       setMessages([{
         id: crypto.randomUUID(),
         content: currentPersona.greeting as string,
