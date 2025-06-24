@@ -61,6 +61,7 @@ export class GeminiChat {
     const result = await sendToCloudFunction('chat', {
       query: fullMessage,
       personaId,
+      historyFileName: `${personaId}.json`,
     });
     return this.wrapResponse(result.chat, result.suggestions);
   }
