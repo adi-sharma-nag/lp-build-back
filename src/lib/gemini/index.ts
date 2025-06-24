@@ -1,9 +1,9 @@
 import type { ModelConfig, ChatMessage, ChatResponse } from './types';
+import { useAuthStore } from '../../stores/authStore';
 
 const CLOUD_FUNCTION_URL =
   'https://living-persona-back-816746757912.us-central1.run.app';
 const SECRET_KEY = 'Y7mA3rftGFrSSed87dXfK9Zq1VtPgUcY8WrQjN6e2Hxs';
-import { useAuthStore } from '../../stores/authStore';
 
 const getAuthHeader = () => {
   const header = useAuthStore.getState().authHeader;
@@ -11,12 +11,16 @@ const getAuthHeader = () => {
 };
 
 export async function sendToCloudFunction(
-  type: 'chat' | 'image-analysis' | 'generate-image' | 'history' | 'historyChatContent',
+  type:
+    | 'chat'
+    | 'suggestions'
+    | 'image-analysis'
+    | 'generate-image'
+    | 'history'
+    | 'historyChatContent',
   payload: object
 ): Promise<Record<string, unknown>> {
   try {
-    const backendType = type
-
     const response = await fetch(CLOUD_FUNCTION_URL, {
       method: 'POST',
       headers: {
@@ -25,31 +29,42 @@ export async function sendToCloudFunction(
       },
       body: JSON.stringify({
         key: SECRET_KEY,
-        type: backendType,
+        type,
         ...payload,
       }),
     });
 
+    const text = await response.text();
+    let data: unknown;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      // Ignore parse errors; fallback to raw text
+    }
+
     if (!response.ok) {
-      const errorText = await response.text();
-      let message = `HTTP ${response.status}: ${errorText}`;
-      try {
-        const parsed = JSON.parse(errorText);
-        if (parsed?.error) {
-          message = parsed.error;
-        }
-      } catch {
-        // ignore JSON parse errors and use raw text
-      }
+      const message =
+        (data && typeof data === 'object' && 'error' in data)
+          ? (data as { error: string }).error
+          : typeof text === 'string'
+            ? text
+            : `HTTP ${response.status}`;
       throw new Error(message);
     }
 
-    const result = await response.json();
-    // Cloud function wraps the actual payload under a `response` field
-    // in some cases. Normalise the response shape here so callers always
-    // receive the inner object directly.
-    if (typeof result === 'object' && result !== null && 'response' in result) {
-      return (result as { response: Record<string, unknown> }).response;
+    const result = data ?? {};
+
+    // Normalize cloud response
+    if (
+      typeof result === 'object' &&
+      result !== null &&
+      'response' in result
+    ) {
+      const inner = (result as { response: unknown }).response;
+      if (inner && typeof inner === 'object') {
+        return inner as Record<string, unknown>;
+      }
+      throw new Error(String(inner));
     }
 
     return result;
@@ -82,8 +97,6 @@ export class GeminiChat {
     return this.wrapResponse(result.chat, result.suggestions);
   }
 
-  // Suggestions are now returned with chat, so this is unused but kept
-  // for backwards compatibility.
   async getSuggestions(): Promise<ChatResponse> {
     const result = await sendToCloudFunction('chat', {});
     return this.wrapResponse(result.chat, result.suggestions);
@@ -98,10 +111,7 @@ export class GeminiChat {
     const historyText = history
       .map(msg => `${msg.role}: ${msg.content}`)
       .join('\n');
-    if (historyText) {
-      return `${historyText}\nuser: ${message}`;
-    }
-    return message;
+    return historyText ? `${historyText}\nuser: ${message}` : message;
   }
 
   private wrapResponse(
@@ -115,7 +125,12 @@ export class GeminiChat {
         confidence: 1,
         processingTime: 0,
       },
-      suggestions: suggestionsText
+      suggestions: Array.isArray(suggestionsText)
+        ? (suggestionsText as string[])
+            .map(s => s.trim())
+            .filter(Boolean)
+            .slice(0, 5)
+        : suggestionsText
         ? suggestionsText
             .split('\n')
             .filter(line => line.trim())
