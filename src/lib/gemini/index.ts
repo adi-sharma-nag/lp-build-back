@@ -11,7 +11,13 @@ const getAuthHeader = () => {
 };
 
 export async function sendToCloudFunction(
-  type: 'chat' | 'image-analysis' | 'generate-image' | 'history' | 'historyChatContent',
+  type:
+    | 'chat'
+    | 'suggestions'
+    | 'image-analysis'
+    | 'generate-image'
+    | 'history'
+    | 'historyChatContent',
   payload: object
 ): Promise<Record<string, unknown>> {
   try {
@@ -30,26 +36,40 @@ export async function sendToCloudFunction(
       }),
     });
 
+    const text = await response.text();
+    let data: unknown;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      // ignore parse error
+    }
+
     if (!response.ok) {
-      const errorText = await response.text();
-      let message = `HTTP ${response.status}: ${errorText}`;
-      try {
-        const parsed = JSON.parse(errorText);
-        if (parsed?.error) {
-          message = parsed.error;
-        }
-      } catch {
-        // ignore JSON parse errors and use raw text
-      }
+      const message =
+        (data && typeof data === 'object' && 'error' in data
+          ? (data as { error: string }).error
+          : typeof text === 'string'
+            ? text
+            : `HTTP ${response.status}`);
       throw new Error(message);
     }
 
-    const result = await response.json();
+    const result = data ?? {};
+
     // Cloud function wraps the actual payload under a `response` field
     // in some cases. Normalise the response shape here so callers always
     // receive the inner object directly.
-    if (typeof result === 'object' && result !== null && 'response' in result) {
-      return (result as { response: Record<string, unknown> }).response;
+    if (
+      typeof result === 'object' &&
+      result !== null &&
+      'response' in result
+    ) {
+      const inner = (result as { response: unknown }).response;
+      if (inner && typeof inner === 'object') {
+        return inner as Record<string, unknown>;
+      }
+      // Server sometimes returns an error string in the `response` field
+      throw new Error(String(inner));
     }
 
     return result;
@@ -115,7 +135,12 @@ export class GeminiChat {
         confidence: 1,
         processingTime: 0,
       },
-      suggestions: suggestionsText
+      suggestions: Array.isArray(suggestionsText)
+        ? (suggestionsText as string[])
+            .map(s => s.trim())
+            .filter(Boolean)
+            .slice(0, 5)
+        : suggestionsText
         ? suggestionsText
             .split('\n')
             .filter(line => line.trim())
