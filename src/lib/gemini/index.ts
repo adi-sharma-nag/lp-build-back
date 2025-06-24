@@ -3,9 +3,10 @@ import type { ModelConfig, ChatMessage, ChatResponse } from './types';
 const CLOUD_FUNCTION_URL =
   'https://living-persona-back-816746757912.us-central1.run.app';
 const SECRET_KEY = 'Y7mA3rftGFrSSed87dXfK9Zq1VtPgUcY8WrQjN6e2Hxs';
+const BASIC_AUTH = 'Basic ' + btoa('srk:test');
 
 export async function sendToCloudFunction(
-  type: 'chat' | 'image-analysis',
+  type: 'chat' | 'image-analysis' | 'generate-image',
   payload: object
 ): Promise<any> {
   try {
@@ -13,7 +14,10 @@ export async function sendToCloudFunction(
 
     const response = await fetch(CLOUD_FUNCTION_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: BASIC_AUTH,
+      },
       body: JSON.stringify({
         key: SECRET_KEY,
         type: backendType,
