@@ -138,6 +138,73 @@ export class GeminiChat {
   }
 }
 
+
+export class GeminiChat {
+  private modelConfig: ModelConfig
+  private persona: ModelConfig['persona'] | undefined
+
+  constructor(modelConfig: ModelConfig) {
+    this.modelConfig = modelConfig
+    this.persona = modelConfig.persona
+  }
+
+  async chat(
+    message: string,
+    history: ChatMessage[] = [],
+    personaId: string
+  ): Promise<ChatResponse> {
+    const fullMessage = this.composeMessageWithHistory(message, history)
+    const result = await sendToCloudFunction('chat', {
+      query: fullMessage,
+      personaId,
+      historyFileName: `${personaId}.json`,
+    })
+    return this.wrapResponse(result.chat as string, result.suggestions as string)
+  }
+
+  // Suggestions are now returned with chat, so this is unused but kept
+  // for backwards compatibility.
+  async getSuggestions(): Promise<ChatResponse> {
+    const result = await sendToCloudFunction('chat', {})
+    return this.wrapResponse(result.chat as string, result.suggestions as string)
+  }
+
+  async analyzeImage(imageData: string): Promise<ChatResponse> {
+    const result = await sendToCloudFunction('image-analysis', { imageData })
+    return this.wrapResponse(result.response as string, undefined, result.image as string)
+  }
+
+  private composeMessageWithHistory(message: string, history: ChatMessage[]): string {
+    const historyText = history.map(msg => `${msg.role}: ${msg.content}`).join('\n')
+    if (historyText) {
+      return `${historyText}\nuser: ${message}`
+    }
+    return message
+  }
+
+  private wrapResponse(
+    text: string,
+    suggestionsText?: string,
+    image?: string
+  ): ChatResponse {
+    return {
+      content: text,
+      metadata: {
+        confidence: 1,
+        processingTime: 0,
+      },
+      suggestions: suggestionsText
+        ? suggestionsText
+            .split('\n')
+            .filter(line => line.trim())
+            .map(line => line.replace(/^["'\d.\s-]+/, '').trim())
+            .slice(0, 5)
+        : undefined,
+      image,
+    }
+  }
+}
+
 export async function getChatHistory() {
   return sendToCloudFunction('history', {})
 }
