@@ -11,8 +11,6 @@ const getAuthHeader = (): string => {
 
   // Fallback to Basic srk:test if no authHeader in store
   const auth = header || 'Basic ' + btoa('srk:test');
-
-  console.log('Authorization header being sent:', auth);
   return auth;
 };
 
@@ -27,13 +25,6 @@ export async function sendToCloudFunction(
       'Content-Type': 'application/json',
       Authorization: getAuthHeader(),
     };
-
-    console.log('Sending request to backend with headers:', headers);
-    console.log('Request payload:', {
-      key: SECRET_KEY,
-      type: backendType,
-      ...payload,
-    });
 
     const response = await fetch(CLOUD_FUNCTION_URL, {
       method: 'POST',
