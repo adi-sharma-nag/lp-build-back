@@ -1,8 +1,10 @@
-import { useState } from 'react'
 import { Routes, Route, useNavigate, Navigate } from 'react-router-dom'
 import { Suspense, lazy } from 'react'
 import Dashboard from './pages/Dashboard'
 import AppHome from './pages/AppHome'
+import Security from './pages/Security'
+import ChatHistory from './pages/ChatHistory'
+import Login from './pages/Login'
 const Landing = lazy(() => import('./pages/Landing'))
 import { Toaster } from 'react-hot-toast'
 
@@ -23,7 +25,7 @@ function App() {
   const navigate = useNavigate()
 
   const handleStartChat = () => {
-    navigate('/app')
+    navigate('/login')
   }
 
   return (
@@ -34,8 +36,11 @@ function App() {
             <Landing onStartQuiz={handleStartChat} />
           </Suspense>
         } />
+        <Route path="/login" element={<Login />} />
         <Route path="/app" element={<AppHome />} />
         <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/security" element={<Security />} />
+        <Route path="/history" element={<ChatHistory />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       <Toaster position="top-right" />

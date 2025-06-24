@@ -3,12 +3,17 @@ import type { ModelConfig, ChatMessage, ChatResponse } from './types';
 const CLOUD_FUNCTION_URL =
   'https://living-persona-back-816746757912.us-central1.run.app';
 const SECRET_KEY = 'Y7mA3rftGFrSSed87dXfK9Zq1VtPgUcY8WrQjN6e2Hxs';
-const BASIC_AUTH = 'Basic ' + btoa('srk:test');
+import { useAuthStore } from '../../stores/authStore';
+
+const getAuthHeader = () => {
+  const header = useAuthStore.getState().authHeader;
+  return header || 'Basic ' + btoa('srk:test');
+};
 
 export async function sendToCloudFunction(
-  type: 'chat' | 'image-analysis' | 'generate-image',
+  type: 'chat' | 'image-analysis' | 'generate-image' | 'history' | 'historyChatContent',
   payload: object
-): Promise<any> {
+): Promise<Record<string, unknown>> {
   try {
     const backendType = type
 
@@ -16,7 +21,7 @@ export async function sendToCloudFunction(
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: BASIC_AUTH,
+        Authorization: getAuthHeader(),
       },
       body: JSON.stringify({
         key: SECRET_KEY,
@@ -32,7 +37,7 @@ export async function sendToCloudFunction(
 
     const result = await response.json();
     return result;
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('Error communicating with backend:', err);
     throw err;
   }
@@ -56,6 +61,7 @@ export class GeminiChat {
     const result = await sendToCloudFunction('chat', {
       query: fullMessage,
       personaId,
+      historyFileName: `${personaId}.json`,
     });
     return this.wrapResponse(result.chat, result.suggestions);
   }
@@ -103,4 +109,12 @@ export class GeminiChat {
       image,
     };
   }
+}
+
+export async function getChatHistory() {
+  return sendToCloudFunction('history', {});
+}
+
+export async function getChatHistoryContent(historyFileName: string) {
+  return sendToCloudFunction('historyChatContent', { historyFileName });
 }
