@@ -182,7 +182,6 @@ function ChatInterface() {
       setMessages(prev => [...prev, analysisMessage])
 
       if (response.image) {
-
         const imageMessage: Message = {
           id: crypto.randomUUID(),
           content: 'Here is a new image based on your input.',
@@ -191,7 +190,6 @@ function ChatInterface() {
           image: response.image,
         }
         setMessages(prev => [...prev, imageMessage])
-
       }
     } catch (error) {
       console.error('Failed to analyze image:', error)

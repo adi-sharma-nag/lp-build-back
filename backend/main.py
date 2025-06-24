@@ -5,7 +5,7 @@ import json
 import base64
 import datetime
 
-genai.configure(api_key="YOUR_KEY_HERE")
+genai.configure(api_key="KEY_HERE")
 
 def get_user_chat_history(username):
     folder_prefix = f"chats/{username}/"
