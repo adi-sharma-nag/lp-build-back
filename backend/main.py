@@ -54,16 +54,6 @@ modelChat = genai.GenerativeModel(
                         },
                         system_instruction=personaSystemInstruction
                     )
-modelSuggest = genai.GenerativeModel(
-                    model_name="gemini-1.5-flash",
-                    generation_config= {
-                            "temperature": 1.4,
-                            "top_p": 0.95,
-                            "top_k": 40,
-                            "max_output_tokens": 8192,
-                        }
-                )
-suggest = modelSuggest.start_chat(history=[])
 
 def getFirstHistory():
     return [{
@@ -77,32 +67,38 @@ def getFirstHistory():
 def processChatRequest(username,query,historyFileName):
     outputResponse = {"chat" : "", "suggestions" : ""}
     oldHistoryChat = {}
-    if query != "" : 
+    if query != "" :
         fileContent = read_file_from_gcs("personas-bucket-test",f"chats/{username}/{historyFileName}")
         if (fileContent == {} or json.loads(fileContent)["chat-history"] == {}):
             oldHistoryChat = getFirstHistory()
-        else :    
+        else :
             record = json.loads(fileContent)
             oldHistoryChat = record["chat-history"]
-        
+
         print(f"query {query} loaded history : {oldHistoryChat}")
         chat = modelChat.start_chat(history=oldHistoryChat)
-        response = chat.send_message(query) 
-        suggestionQuery = response.text
-        outputResponse["chat"] = suggestionQuery
-        oldHistoryChat.append({"role" : "user","parts" : [query]})
-        oldHistoryChat.append({"role" : "assistant","parts" : [suggestionQuery]})
+        suggestionsInstruction = read_file_from_gcs("personas-bucket-test","avatars/avery-suggestions-prompt.txt")
+        suggestionsInstruction = suggestionsInstruction.replace("${lastMessage}", query)
+        combined_query = f"{query}\n\n{suggestionsInstruction}\nReturn your response first. After that, start a new line with 'SUGGESTIONS:' followed by each suggestion on its own line."
+        response = chat.send_message(combined_query)
+        full_text = response.text
+        if "SUGGESTIONS:" in full_text:
+            chat_text, sugg_text = full_text.split("SUGGESTIONS:", 1)
+            outputResponse["chat"] = chat_text.strip()
+            suggestions = [s.strip("- \n") for s in sugg_text.strip().splitlines() if s.strip()]
+            outputResponse["suggestions"] = "\n".join(suggestions)
+        else:
+            outputResponse["chat"] = full_text
+            outputResponse["suggestions"] = ""
 
-    
-    else : 
-        suggestionQuery = "Hey! 👋 I'm Avery. I'm a 23-year-old digital marketing professional with deep insights into Gen Z consumer behavior and hybrid shopping trends. Ask me anything or click on my profile picture to learn more about me!"
-    ## getting suggestions
-    suggestionsInstruction = read_file_from_gcs("personas-bucket-test","avatars/avery-suggestions-prompt.txt")
-    suggestionsInstruction = suggestionsInstruction.replace("${lastMessage}",suggestionQuery)
-    suggestResponse = suggest.send_message(suggestionsInstruction) 
-    outputResponse["suggestions"] = suggestResponse.text
-    
-    historyRecord = {"chat-history" : oldHistoryChat,"suggestion-history" : suggestResponse.text}
+        oldHistoryChat.append({"role" : "user","parts" : [query]})
+        oldHistoryChat.append({"role" : "assistant","parts" : [outputResponse["chat"]]})
+
+    else :
+        outputResponse["chat"] = FIRST_MSG
+        outputResponse["suggestions"] = ""
+
+    historyRecord = {"chat-history" : oldHistoryChat,"suggestion-history" : outputResponse["suggestions"]}
     upload_file_to_gcs("personas-bucket-test",f"chats/{username}/{historyFileName}",historyRecord)
     return outputResponse
 

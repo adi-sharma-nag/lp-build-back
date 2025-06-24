@@ -6,7 +6,7 @@ const SECRET_KEY = 'Y7mA3rftGFrSSed87dXfK9Zq1VtPgUcY8WrQjN6e2Hxs';
 const BASIC_AUTH = 'Basic ' + btoa('srk:test');
 
 export async function sendToCloudFunction(
-  type: 'chat' | 'image-analysis' | 'generate-image',
+  type: 'chat' | 'image-analysis' | 'generate-image' | 'history' | 'historyChatContent',
   payload: object
 ): Promise<any> {
   try {
@@ -103,4 +103,12 @@ export class GeminiChat {
       image,
     };
   }
+}
+
+export async function getChatHistory() {
+  return sendToCloudFunction('history', {});
+}
+
+export async function getChatHistoryContent(historyFileName: string) {
+  return sendToCloudFunction('historyChatContent', { historyFileName });
 }

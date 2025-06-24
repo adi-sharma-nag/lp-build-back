@@ -3,6 +3,8 @@ import { Routes, Route, useNavigate, Navigate } from 'react-router-dom'
 import { Suspense, lazy } from 'react'
 import Dashboard from './pages/Dashboard'
 import AppHome from './pages/AppHome'
+import Security from './pages/Security'
+import ChatHistory from './pages/ChatHistory'
 const Landing = lazy(() => import('./pages/Landing'))
 import { Toaster } from 'react-hot-toast'
 
@@ -36,6 +38,8 @@ function App() {
         } />
         <Route path="/app" element={<AppHome />} />
         <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/security" element={<Security />} />
+        <Route path="/history" element={<ChatHistory />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       <Toaster position="top-right" />
