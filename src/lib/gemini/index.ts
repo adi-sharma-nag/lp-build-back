@@ -1,9 +1,9 @@
 import type { ModelConfig, ChatMessage, ChatResponse } from './types';
+import { useAuthStore } from '../../stores/authStore';
 
 const CLOUD_FUNCTION_URL =
   'https://living-persona-back-816746757912.us-central1.run.app';
 const SECRET_KEY = 'Y7mA3rftGFrSSed87dXfK9Zq1VtPgUcY8WrQjN6e2Hxs';
-import { useAuthStore } from '../../stores/authStore';
 
 const getAuthHeader = () => {
   const header = useAuthStore.getState().authHeader;
@@ -21,8 +21,6 @@ export async function sendToCloudFunction(
   payload: object
 ): Promise<Record<string, unknown>> {
   try {
-    const backendType = type
-
     const response = await fetch(CLOUD_FUNCTION_URL, {
       method: 'POST',
       headers: {
@@ -31,7 +29,7 @@ export async function sendToCloudFunction(
       },
       body: JSON.stringify({
         key: SECRET_KEY,
-        type: backendType,
+        type,
         ...payload,
       }),
     });
@@ -41,24 +39,22 @@ export async function sendToCloudFunction(
     try {
       data = JSON.parse(text);
     } catch {
-      // ignore parse error
+      // Ignore parse errors; fallback to raw text
     }
 
     if (!response.ok) {
       const message =
-        (data && typeof data === 'object' && 'error' in data
+        (data && typeof data === 'object' && 'error' in data)
           ? (data as { error: string }).error
           : typeof text === 'string'
             ? text
-            : `HTTP ${response.status}`);
+            : `HTTP ${response.status}`;
       throw new Error(message);
     }
 
     const result = data ?? {};
 
-    // Cloud function wraps the actual payload under a `response` field
-    // in some cases. Normalise the response shape here so callers always
-    // receive the inner object directly.
+    // Normalize cloud response
     if (
       typeof result === 'object' &&
       result !== null &&
@@ -68,7 +64,6 @@ export async function sendToCloudFunction(
       if (inner && typeof inner === 'object') {
         return inner as Record<string, unknown>;
       }
-      // Server sometimes returns an error string in the `response` field
       throw new Error(String(inner));
     }
 
@@ -102,8 +97,6 @@ export class GeminiChat {
     return this.wrapResponse(result.chat, result.suggestions);
   }
 
-  // Suggestions are now returned with chat, so this is unused but kept
-  // for backwards compatibility.
   async getSuggestions(): Promise<ChatResponse> {
     const result = await sendToCloudFunction('chat', {});
     return this.wrapResponse(result.chat, result.suggestions);
@@ -118,10 +111,7 @@ export class GeminiChat {
     const historyText = history
       .map(msg => `${msg.role}: ${msg.content}`)
       .join('\n');
-    if (historyText) {
-      return `${historyText}\nuser: ${message}`;
-    }
-    return message;
+    return historyText ? `${historyText}\nuser: ${message}` : message;
   }
 
   private wrapResponse(
