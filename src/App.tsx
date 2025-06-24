@@ -5,6 +5,7 @@ import AppHome from './pages/AppHome'
 import Security from './pages/Security'
 import ChatHistory from './pages/ChatHistory'
 import Login from './pages/Login'
+
 const Landing = lazy(() => import('./pages/Landing'))
 import { Toaster } from 'react-hot-toast'
 
