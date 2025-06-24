@@ -32,10 +32,26 @@ export async function sendToCloudFunction(
 
     if (!response.ok) {
       const errorText = await response.text();
-      throw new Error(`HTTP ${response.status}: ${errorText}`);
+      let message = `HTTP ${response.status}: ${errorText}`;
+      try {
+        const parsed = JSON.parse(errorText);
+        if (parsed?.error) {
+          message = parsed.error;
+        }
+      } catch {
+        // ignore JSON parse errors and use raw text
+      }
+      throw new Error(message);
     }
 
     const result = await response.json();
+    // Cloud function wraps the actual payload under a `response` field
+    // in some cases. Normalise the response shape here so callers always
+    // receive the inner object directly.
+    if (typeof result === 'object' && result !== null && 'response' in result) {
+      return (result as { response: Record<string, unknown> }).response;
+    }
+
     return result;
   } catch (err: unknown) {
     console.error('Error communicating with backend:', err);
